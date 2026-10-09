@@ -30,7 +30,7 @@ jobs:
           LIBS_DIR="$(dirname "$(find /tmp/laya-package -name laya.core.js -type f | head -n 1)")"
           test -n "$LIBS_DIR"
           mkdir -p dist/libs dist/js
-          cp index.html .nojekyll dist/
+          cp index.html .nojekyll fileconfig.json dist/
           cp js/*.js dist/js/
           for file in laya.core.js laya.d3.js laya.webgl_2D.js laya.webgl_3D.js laya.ui2.js laya.physics3D.js laya.bullet.js laya.bullet.wasm.js bullet.wasm; do
             test -s "$LIBS_DIR/$file" || { echo "Missing official 3.4 library: $file"; exit 1; }
