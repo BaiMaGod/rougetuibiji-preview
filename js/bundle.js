@@ -513,6 +513,7 @@ class Hud {
     rect(x, y, w, h, fill, radius = 0) {
         const s = new Laya.Sprite();
         s.pos(x, y);
+        s.size(w, h);
         if (radius && s.graphics.drawRoundRect)
             s.graphics.drawRoundRect(0, 0, w, h, radius, fill);
         else
@@ -532,6 +533,7 @@ class Hud {
         l.valign = "middle";
         box.addChild(l);
         box.mouseEnabled = true;
+        l.mouseEnabled = false;
         box.on(Laya.Event.CLICK, this, cb);
         return box;
     }
