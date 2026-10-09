@@ -68,7 +68,20 @@ jobs:
             page.on('console', msg=>{if(msg.type()==='error')errors.push(msg.text());});
             page.on('response', resp=>{if(resp.status()>=400)errors.push(`${resp.status()} ${resp.url()}`);});
             await page.goto('http://127.0.0.1:4173/?e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>Boolean(globalThis.__COIN_PUSHER__?.inspect),{timeout:60000});
+            try{
+              await page.waitForFunction(()=>Boolean(globalThis.__COIN_PUSHER__?.inspect),{timeout:12000});
+            }catch(err){
+              console.log('Startup state:', await page.locator('#startup-state').textContent());
+              console.log('Console errors:',JSON.stringify(errors));
+              console.log('Global engine diagnostics:',await page.evaluate(()=>({
+                hasLaya:!!window.Laya,
+                hasBullet:!!window.Laya?.Rigidbody3D,
+                main:typeof window.$_main_,
+                canvas:document.querySelectorAll('canvas').length
+              })));
+              await page.screenshot({path:'artifacts/failed-start.png',fullPage:true});
+              throw err;
+            }
             const s=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
             console.log('LayaAir actual scene:',JSON.stringify(s));
             assert.equal(s.activeCoins,84,'all 84 seed coins must have rigid bodies');
