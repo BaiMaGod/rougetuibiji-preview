@@ -514,10 +514,7 @@ class Hud {
         const s = new Laya.Sprite();
         s.pos(x, y);
         s.size(w, h);
-        if (radius && s.graphics.drawRoundRect)
-            s.graphics.drawRoundRect(0, 0, w, h, radius, fill);
-        else
-            s.graphics.drawRect(0, 0, w, h, fill);
+        s.graphics.drawRect(0, 0, w, h, fill);
         this.root.addChild(s);
         return s;
     }
