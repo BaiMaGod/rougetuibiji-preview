@@ -30,14 +30,14 @@ jobs:
           LIBS_DIR="$(dirname "$(find /tmp/laya-package -name laya.core.js -type f | head -n 1)")"
           test -n "$LIBS_DIR"
           mkdir -p dist/libs dist/js
-          cp -a "$LIBS_DIR"/. dist/libs/
           cp index.html .nojekyll dist/
           cp js/*.js dist/js/
-          echo 'Available engine libraries:'
-          ls -lah dist/libs/ | head -40
-          for file in laya.core.js laya.d3.js laya.webgl_2D.js laya.webgl_3D.js laya.physics3D.js laya.bullet.js; do
-            test -s "dist/libs/$file" || { echo "Missing official 3.4 library: $file"; exit 1; }
+          for file in laya.core.js laya.d3.js laya.webgl_2D.js laya.webgl_3D.js laya.ui2.js laya.physics3D.js laya.bullet.js laya.bullet.wasm.js bullet.wasm; do
+            test -s "$LIBS_DIR/$file" || { echo "Missing official 3.4 library: $file"; exit 1; }
+            cp "$LIBS_DIR/$file" "dist/libs/$file"
           done
+          echo 'Bundled runtime libraries:'
+          du -ah dist/libs | sort -h | tail -14
       - name: Install browser smoke-test tool
         run: npm install --no-save --ignore-scripts playwright-core@1.55.0
       - name: Start built preview Web server
