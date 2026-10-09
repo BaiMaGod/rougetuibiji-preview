@@ -499,7 +499,7 @@ class Hud {
         this.H = 1334;
     }
     label(text, x, y, width, size = 28, color = "#ffffff", bold = true) {
-        const l = new Laya.Label(text);
+        const l = new Laya.Text(text);
         l.pos(x, y);
         l.width = width;
         l.height = size + 16;
@@ -522,7 +522,7 @@ class Hud {
     }
     button(text, x, y, w, h, fill, cb) {
         const box = this.rect(x, y, w, h, fill, 20);
-        const l = new Laya.Label(text);
+        const l = new Laya.Text(text);
         l.width = w;
         l.height = h;
         l.fontSize = 28;
