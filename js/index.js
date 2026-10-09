@@ -5,6 +5,8 @@
     resolution: { designWidth: 750, designHeight: 1334, scaleMode: 'showall', screenMode: 'none', alignH: 'center', alignV: 'middle', backgroundColor: '#11172a' },
     '2D': { useRetinalCanvas: false, defaultFontSize: 22, defaultFont: 'Arial' },
     '3D': { pixelRatio: 1, enableDynamicBatch: true, enableMultiLight: true, maxLightCount: 8, lightClusterCount: { x: 12, y: 12, z: 12 } },
+    addons: { 'laya.ui': 'ui2' },
+    UI: { alwaysIncludeDefaultSkin: false },
     modules: { 'laya.physics3D': true },
     physics3dModule: 'laya.bullet',
     physics3D: { fixedTimeStep: 0.016666666666666666, maxSubSteps: 2, enableCCD: false },
@@ -22,6 +24,7 @@
     Object.assign(Laya.PlayerConfig, config);
     Object.assign(Laya.Config, config['2D']);
     Object.assign(Laya.Config3D, config['3D']);
+    if (Laya.UIConfig2) Object.assign(Laya.UIConfig2, config.UI);
     if (Laya.Config3D.lightClusterCount && Laya.Vector3) {
       const v = Laya.Config3D.lightClusterCount;
       Laya.Config3D.lightClusterCount = new Laya.Vector3(v.x, v.y, v.z);
