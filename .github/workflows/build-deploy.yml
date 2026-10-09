@@ -1,0 +1,102 @@
+name: Free LayaAir 3.4 preview build, Chromium QA and Pages deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'js/**'
+      - '.github/workflows/build-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coin-pusher-preview-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official LayaAir 3.4.0 engine binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLsS --retry 3 --retry-delay 2 'https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip' -o /tmp/laya-libs.zip
+          unzip -q /tmp/laya-libs.zip -d /tmp/laya-package
+          LIBS_DIR="$(dirname "$(find /tmp/laya-package -name laya.core.js -type f | head -n 1)")"
+          test -n "$LIBS_DIR"
+          mkdir -p dist/libs dist/js
+          cp -a "$LIBS_DIR"/. dist/libs/
+          cp index.html .nojekyll dist/
+          cp js/*.js dist/js/
+          echo 'Available engine libraries:'
+          ls -lah dist/libs/ | head -40
+          for file in laya.core.js laya.d3.js laya.webgl_2D.js laya.webgl_3D.js laya.physics3D.js laya.bullet.js; do
+            test -s "dist/libs/$file" || { echo "Missing official 3.4 library: $file"; exit 1; }
+          done
+      - name: Install browser smoke-test tool
+        run: npm install --no-save --ignore-scripts playwright-core@1.55.0
+      - name: Start built preview Web server
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/coin-web-server.log 2>&1 &
+          for i in {1..25}; do
+            if curl -fsS http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/coin-web-server.log
+          exit 1
+      - name: Chromium WebGL/Bullet real browser smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright-core';
+          import assert from 'node:assert/strict';
+          const exe=process.env.CHROME_BIN || '/usr/bin/google-chrome';
+          const browser=await chromium.launch({executablePath:exe,args:['--no-sandbox','--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
+          try{
+            const page=await browser.newPage({viewport:{width:750,height:1334},deviceScaleFactor:1});
+            const errors=[];
+            page.on('pageerror', e=>errors.push(String(e)));
+            page.on('console', msg=>{if(msg.type()==='error')errors.push(msg.text());});
+            page.on('response', resp=>{if(resp.status()>=400)errors.push(`${resp.status()} ${resp.url()}`);});
+            await page.goto('http://127.0.0.1:4173/?e2e=1',{waitUntil:'domcontentloaded'});
+            await page.waitForFunction(()=>Boolean(globalThis.__COIN_PUSHER__?.inspect),{timeout:60000});
+            const s=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
+            console.log('LayaAir actual scene:',JSON.stringify(s));
+            assert.equal(s.activeCoins,84,'all 84 seed coins must have rigid bodies');
+            assert.equal(s.supply,45);
+            await page.screenshot({path:'artifacts/start.png'});
+            await page.mouse.click(200,1165);
+            await page.waitForTimeout(350);
+            const a=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
+            assert.equal(a.supply,44,'physical drop button must deduct 1');
+            assert.equal(a.activeCoins,85,'physical drop must create one coin body');
+            await page.screenshot({path:'artifacts/drop.png'});
+            assert.deepEqual(errors,[],'No Chromium browser JS/HTTP errors allowed');
+            console.log('PASS: WebGL scene, 84 physical coins, working input, no console errors');
+          }finally{await browser.close();}
+          NODE
+      - name: Upload QA diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coin-pusher-laya34-preview-qa
+          path: artifacts/
+          if-no-files-found: ignore
+      - name: Publish only validated compiled assets to gh-pages
+        if: success()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          enable_jekyll: false
