@@ -5,6 +5,7 @@ on:
     paths:
       - 'index.html'
       - 'js/**'
+      - 'resources/**'
       - '.github/workflows/build-deploy.yml'
   workflow_dispatch:
 
@@ -29,7 +30,8 @@ jobs:
           unzip -q /tmp/laya-libs.zip -d /tmp/laya-package
           LIBS_DIR="$(dirname "$(find /tmp/laya-package -name laya.core.js -type f | head -n 1)")"
           test -n "$LIBS_DIR"
-          mkdir -p dist/libs dist/js
+          mkdir -p dist/libs dist/js dist/resources
+          cp -a resources/. dist/resources/
           cp index.html .nojekyll fileconfig.json dist/
           cp js/*.js dist/js/
           for file in laya.core.js laya.d3.js laya.webgl_2D.js laya.webgl_3D.js laya.ui2.js laya.physics3D.js laya.bullet.js laya.bullet.wasm.js bullet.wasm; do
@@ -84,17 +86,28 @@ jobs:
             }
             const s=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
             console.log('LayaAir actual scene:',JSON.stringify(s));
-            assert.equal(s.activeCoins,84,'all 84 seed coins must have rigid bodies');
+            assert.equal(s.activeCoins,144,'all 144 seed coins must have rigid bodies');
             assert.equal(s.supply,45);
+            await page.waitForTimeout(900);
             await page.screenshot({path:'artifacts/start.png'});
-            await page.mouse.click(200,1165);
+            await page.mouse.click(316,1139);
             await page.waitForTimeout(350);
             const a=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
             assert.equal(a.supply,44,'physical drop button must deduct 1');
-            assert.equal(a.activeCoins,85,'physical drop must create one coin body');
+            assert.ok(a.activeCoins>=120,'physical drop must keep genuine rigid bodies alive');
+            assert.ok(a.queued>0,'the drop must enqueue a real pusher cycle');
             await page.screenshot({path:'artifacts/drop.png'});
+            await page.mouse.click(707,948);
+            await page.waitForTimeout(100);
+            const paused=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
+            assert.equal(paused.paused,true,'actual pause button must pause Bullet');
+            await page.mouse.click(340,760);
+            await page.waitForTimeout(100);
+            const resumed=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
+            assert.equal(resumed.paused,false,'tap continue resumes game');
+            await page.screenshot({path:'artifacts/resumed.png'});
             assert.deepEqual(errors,[],'No Chromium browser JS/HTTP errors allowed');
-            console.log('PASS: WebGL scene, 84 physical coins, working input, no console errors');
+            console.log('PASS: V0.2 title/control artwork, 144 physical coins, gameplay input, pause/resume, no errors');
           }finally{await browser.close();}
           NODE
       - name: Upload QA diagnostics

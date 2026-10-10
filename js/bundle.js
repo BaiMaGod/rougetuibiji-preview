@@ -1,14 +1,12 @@
-/* Compiled game runtime, LayaAir3.4/Bullet physical coin pusher */
-(function(){
-'use strict';
-const modules = {
-  "Entry": function(module,exports,require){
+/* 肉鸽推币机 V0.2 - compiled TypeScript gameplay. No source .ts is shipped to preview. */
+(function(global){
+  const factories={"Entry":function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main = main;
 const CoinPusherGame_1 = require("./game/CoinPusherGame");
 async function main() {
-    Laya.stage.bgColor = "#11172a";
+    Laya.stage.bgColor = "#100726";
     const mobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(globalThis.navigator?.userAgent ?? "");
     const miniApp = Boolean(globalThis.wx || globalThis.tt);
     const layout = () => {
@@ -35,51 +33,13 @@ async function main() {
     }
 }
 
-  },
-  "core/CollectionGates": function(module,exports,require){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TRAY = void 0;
-exports.routeBelowPlane = routeBelowPlane;
-exports.verifyTrigger = verifyTrigger;
-exports.TRAY = Object.freeze({
-    frontLipZ: 2.28,
-    halfWidth: 2.57,
-    topY: 0,
-    bottomY: -0.12,
-    settleY: -0.30,
-    killY: -2.50
-});
-function routeBelowPlane(p) {
-    if (p.y > exports.TRAY.settleY)
-        return null;
-    // A coin often drops almost vertically after its rear edge loses support;
-    // requiring center.z > lip + 0.12 misclassified legitimate front drops.
-    if (p.z >= exports.TRAY.frontLipZ - 0.16 && Math.abs(p.x) <= exports.TRAY.halfWidth + 0.06)
-        return "front";
-    // Side rails finish before the front lip, allowing a genuine side escape.
-    if (Math.abs(p.x) > exports.TRAY.halfWidth + 0.06 || p.z < -3.88)
-        return "side";
-    // Avoid classifying a coin that has temporarily sunk into the tray; only
-    // resolve a floor-crossing anomaly after it has fallen far below the board.
-    if (p.y < exports.TRAY.killY)
-        return "side";
-    return null;
-}
-/** Ignore pre-lip and corner contacts even if the Bullet callback fires. */
-function verifyTrigger(type, p) {
-    if (type === "front")
-        return p.z > exports.TRAY.frontLipZ + 0.08 && Math.abs(p.x) <= exports.TRAY.halfWidth + 0.06;
-    return Math.abs(p.x) > exports.TRAY.halfWidth + 0.06 && p.z <= exports.TRAY.frontLipZ + 0.08;
-}
-
-  },
-  "core/GameRules": function(module,exports,require){
+},
+"core/GameRules":function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PusherQueue = exports.GameRules = exports.RULES = void 0;
 exports.RULES = Object.freeze({
-    maxCoins: 600, seedCoins: 84, initialSupply: 45, cycleSeconds: 1.25,
+    maxCoins: 600, seedCoins: 144, initialSupply: 45, cycleSeconds: 1.25,
     queueCapacity: 2, scorePerCoin: 10, energyPerCoin: 1, arcadeThreshold: 12,
     rewardCount: 6, maxEnergy: 35
 });
@@ -184,8 +144,224 @@ class PusherQueue {
 }
 exports.PusherQueue = PusherQueue;
 
-  },
-  "game/CoinPusherGame": function(module,exports,require){
+},
+"core/CollectionGates":function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TRAY = void 0;
+exports.routeBelowPlane = routeBelowPlane;
+exports.verifyTrigger = verifyTrigger;
+exports.TRAY = Object.freeze({
+    frontLipZ: 2.28,
+    halfWidth: 2.57,
+    topY: 0,
+    bottomY: -0.12,
+    settleY: -0.30,
+    killY: -2.50
+});
+function routeBelowPlane(p) {
+    if (p.y > exports.TRAY.settleY)
+        return null;
+    // A coin often drops almost vertically after its rear edge loses support;
+    // requiring center.z > lip + 0.12 misclassified legitimate front drops.
+    if (p.z >= exports.TRAY.frontLipZ - 0.16 && Math.abs(p.x) <= exports.TRAY.halfWidth + 0.06)
+        return "front";
+    // Side rails finish before the front lip, allowing a genuine side escape.
+    if (Math.abs(p.x) > exports.TRAY.halfWidth + 0.06 || p.z < -3.88)
+        return "side";
+    // Avoid classifying a coin that has temporarily sunk into the tray; only
+    // resolve a floor-crossing anomaly after it has fallen far below the board.
+    if (p.y < exports.TRAY.killY)
+        return "side";
+    return null;
+}
+/** Ignore pre-lip and corner contacts even if the Bullet callback fires. */
+function verifyTrigger(type, p) {
+    if (type === "front")
+        return p.z > exports.TRAY.frontLipZ + 0.08 && Math.abs(p.x) <= exports.TRAY.halfWidth + 0.06;
+    return Math.abs(p.x) > exports.TRAY.halfWidth + 0.06 && p.z <= exports.TRAY.frontLipZ + 0.08;
+}
+
+},
+"ui/Hud":function(module,exports,require){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Hud = void 0;
+const GameRules_1 = require("../core/GameRules");
+/** V0.2 artwork-based arcade HUD: the machine/currency remain real LayaAir 3D objects. */
+class Hud {
+    constructor(onAim, onDrop, onArcade, onPause, onReset) {
+        this.onAim = onAim;
+        this.onDrop = onDrop;
+        this.onArcade = onArcade;
+        this.onPause = onPause;
+        this.onReset = onReset;
+        this.labels = {};
+        this.aim = 0;
+        this.paused = false;
+        this.lastNotice = "左右移动瞄准位置，点击投币";
+        this.W = 750;
+        this.H = 1334;
+    }
+    text(content, x, y, w, h, size, color = "#fff8e8") {
+        const label = new Laya.Text(content);
+        label.pos(x, y);
+        label.size(w, h);
+        label.fontSize = size;
+        label.color = color;
+        label.bold = true;
+        label.align = "center";
+        label.valign = "middle";
+        label.mouseEnabled = false;
+        label.stroke = 2;
+        label.strokeColor = "#1e164e";
+        this.root.addChild(label);
+        return label;
+    }
+    image(url, x, y, w, h) {
+        const art = new Laya.Sprite();
+        art.pos(x, y);
+        art.size(w, h);
+        art.mouseEnabled = false;
+        this.root.addChild(art);
+        // A missing image must never hide the gameplay or break button input.
+        Laya.loader.load(url).then((texture) => {
+            if (texture && !art.destroyed)
+                art.graphics.drawTexture(texture, 0, 0, w, h);
+        }).catch((err) => console.error("[CoinPusher] UI artwork not loaded", url, err));
+    }
+    plate(x, y, w, h, color, opacity = 1) {
+        const p = new Laya.Sprite();
+        p.pos(x, y);
+        p.size(w, h);
+        p.alpha = opacity;
+        p.graphics.drawRect(0, 0, w, h, color);
+        this.root.addChild(p);
+        return p;
+    }
+    hit(x, y, w, h, handler) {
+        const b = new Laya.Sprite();
+        b.pos(x, y);
+        b.size(w, h);
+        // LayaAir 3.4 needs a real hit area, even over artwork that doesn't receive events.
+        b.graphics.drawRect(0, 0, w, h, "#ffffff");
+        b.alpha = 0.001;
+        b.hitArea = new Laya.Rectangle(0, 0, w, h);
+        b.mouseEnabled = true;
+        b.on(Laya.Event.CLICK, this, handler);
+        this.root.addChild(b);
+        return b;
+    }
+    stepAim(direction) {
+        this.aim = Math.max(-1, Math.min(1, this.aim + direction * 0.125));
+        this.onAim(this.aim);
+        this.labels.aim.text = `投币位置 ${Math.round((this.aim + 1) * 50)}%`;
+    }
+    arrow(x, y, w, h, dir) {
+        const a = this.hit(x, y, w, h, () => { });
+        const tick = () => this.stepAim(dir);
+        let held = false;
+        a.on(Laya.Event.MOUSE_DOWN, this, () => {
+            if (held || this.paused)
+                return;
+            held = true;
+            tick();
+            Laya.timer.loop(135, this, tick);
+        });
+        const stop = () => { if (!held)
+            return; held = false; Laya.timer.clear(this, tick); };
+        a.on(Laya.Event.MOUSE_UP, this, stop);
+        a.on(Laya.Event.MOUSE_OUT, this, stop);
+        Laya.stage.on(Laya.Event.MOUSE_UP, this, stop);
+    }
+    mount() {
+        this.root = new Laya.Sprite();
+        this.root.size(this.W, this.H);
+        Laya.stage.addChild(this.root);
+        this.layout();
+        Laya.stage.on(Laya.Event.RESIZE, this, this.layout);
+        // Marquee and control deck are cropped from the approved 肉鸽推币机 concept.
+        this.image("resources/visual/marquee.webp", 0, 0, 750, 270);
+        this.image("resources/visual/console.webp", 0, 973, 750, 361);
+        for (const [x, y] of [[12, 272], [265, 272], [518, 272]]) {
+            this.image("resources/visual/hud-pill.webp", x, y, 221, 69);
+        }
+        this.labels.score = this.text("得分 0", 20, 281, 210, 49, 29, "#ffeaa6");
+        this.labels.supply = this.text("剩余 45", 273, 281, 210, 49, 29, "#bdf3ff");
+        this.labels.energy = this.text("礼炮 0/12", 526, 281, 210, 49, 28, "#ffbbdb");
+        // Small live targeting marker, distinct from the static art.
+        this.plate(288, 351, 174, 34, "#21133f", 0.84);
+        this.labels.aim = this.text("投币位置 50%", 292, 352, 165, 31, 21, "#ffe7a0");
+        // Dynamic foreground note between machine and console.
+        this.plate(68, 940, 615, 30, "#140d32", 0.79);
+        this.labels.notice = this.text(this.lastNotice, 73, 939, 604, 31, 20, "#fff0d0");
+        this.arrow(28, 1062, 148, 193, -1);
+        this.arrow(450, 1062, 135, 193, 1);
+        this.hit(178, 991, 268, 265, () => { if (!this.paused)
+            this.onDrop(); });
+        this.hit(588, 1060, 151, 197, () => { if (!this.paused)
+            this.onArcade(); });
+        // Dedicated pause icon above the control deck, avoids hiding a gameplay button.
+        this.plate(671, 925, 68, 54, "#25165b", 0.94);
+        this.text("Ⅱ", 681, 929, 48, 43, 33, "#ffda64");
+        this.hit(671, 925, 68, 54, () => this.onPause());
+        this.buildPauseLayer();
+    }
+    buildPauseLayer() {
+        const shade = new Laya.Sprite();
+        shade.size(750, 1334);
+        shade.graphics.drawRect(0, 0, 750, 1334, "#08091e");
+        shade.alpha = 0.88;
+        shade.mouseEnabled = true;
+        this.root.addChild(shade);
+        const title = this.text("游戏已暂停", 105, 485, 540, 100, 51, "#ffd47c");
+        const tip = this.text("休息一下，金币会留在原位", 100, 586, 550, 55, 25, "#b9e7ff");
+        const continueText = this.text("▶ 继续游戏", 205, 722, 340, 80, 36, "#ffffff");
+        const resetText = this.text("↻ 重新开始", 205, 835, 340, 80, 32, "#ffffff");
+        const resumePanel = this.plate(200, 725, 350, 76, "#e98a1f", 0.8);
+        const resetPanel = this.plate(200, 838, 350, 76, "#653c99", 0.9);
+        // Re-add text so it is never obscured by panel graphics.
+        this.root.addChild(continueText);
+        this.root.addChild(resetText);
+        const resume = this.hit(200, 725, 350, 76, () => this.onPause());
+        const restart = this.hit(200, 838, 350, 76, () => this.onReset());
+        this.pauseLayer = { shade, title, tip, resumePanel, resetPanel, continueText, resetText, resume, restart };
+        this.setPauseVisible(false);
+    }
+    setPauseVisible(value) {
+        if (!this.pauseLayer)
+            return;
+        for (const n of Object.values(this.pauseLayer))
+            n.visible = value;
+    }
+    layout() {
+        if (!this.root)
+            return;
+        this.root.x = Math.round((Laya.stage.width - this.W) / 2);
+        this.root.y = Math.round((Laya.stage.height - this.H) / 2);
+    }
+    update(s, queued, paused) {
+        this.paused = paused;
+        this.labels.score.text = `得分 ${s.score}`;
+        this.labels.supply.text = `剩余 ${s.supply}`;
+        this.labels.energy.text = `礼炮 ${s.energy}/${GameRules_1.RULES.arcadeThreshold}`;
+        if (paused)
+            this.lastNotice = "已暂停";
+        else if (s.supply <= 0 && queued === 0)
+            this.lastNotice = "供币用尽，可以使用已充能的礼炮";
+        else if (queued >= GameRules_1.RULES.queueCapacity)
+            this.lastNotice = "推板推进中…";
+        else
+            this.lastNotice = `前落 ${s.collected}  ·  侧漏 ${s.leaked}  ·  已发礼炮 ${s.shots}`;
+        this.labels.notice.text = this.lastNotice;
+        this.setPauseVisible(paused);
+    }
+    showMessage(message) { this.lastNotice = message; this.labels.notice.text = message; }
+}
+exports.Hud = Hud;
+
+},
+"game/CoinPusherGame":function(module,exports,require){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CoinPusherGame = void 0;
@@ -270,11 +446,19 @@ class CoinPusherGame {
         const gold = this.makeMaterial("gold", 1.0, .65, .16, .94);
         this.makeMaterial("seed", .9, .7, .32, .9);
         this.makeMaterial("reward", .96, .34, .6, .85);
-        const navy = this.makeMaterial("navy", .12, .15, .29, .28);
-        const violet = this.makeMaterial("violet", .3, .22, .44, .48);
-        const pink = this.makeMaterial("pink", .94, .28, .49, .72);
+        const navy = this.makeMaterial("navy", .06, .045, .20, .72);
+        const violet = this.makeMaterial("violet", .19, .08, .43, .73);
+        const pink = this.makeMaterial("pink", .98, .08, .49, .92);
         const cream = this.makeMaterial("cream", .98, .78, .49, .7);
-        const board = this.makeMaterial("board", .24, .36, .42, .32);
+        const board = this.makeMaterial("board", .09, .065, .14, .32);
+        const electricBlue = this.makeMaterial("electricBlue", .13, .48, 1.0, .96);
+        const neonPurple = this.makeMaterial("neonPurple", .64, .13, 1.0, .88);
+        const bronze = this.makeMaterial("bronze", .73, .30, .08, .94);
+        const glass = this.makeMaterial("glass", .32, .65, .94, .85);
+        glass.albedoColor = new Laya.Color(.18, .49, .88, .29);
+        if (Laya.BlinnPhongMaterial.RENDERMODE_TRANSPARENT !== undefined)
+            glass.renderMode = Laya.BlinnPhongMaterial.RENDERMODE_TRANSPARENT;
+        this.makeMaterial("coinFace", 1.0, .91, .42, .95);
         this.camera = new Laya.Camera(0, 0.1, 100);
         this.camera.transform.position = this.v(0, 8.0, 9.0);
         this.camera.transform.lookAt(this.v(0, -.1, -.38), this.v(0, 1, 0));
@@ -302,6 +486,19 @@ class CoinPusherGame {
         this.box("left-post", [-3.2, -.04, -.5], [.44, .76, 6.5], pink);
         this.box("right-post", [3.2, -.04, -.5], [.44, .76, 6.5], pink);
         this.box("arcade-mouth", [0, .6, -3.34], [1.55, .45, .45], navy);
+        // Neon cabinet rails, layered plated trim and a shallow plexiglass lip.
+        // These are visual-only meshes: never block the actual front collection slot.
+        for (const side of [-1, 1]) {
+            this.box(`neon-side-${side}`, [side * 3.24, .29, -.55], [.085, .065, 6.42], neonPurple);
+            this.box(`electric-rail-${side}`, [side * 2.78, .56, -.58], [.052, .06, 4.77], electricBlue);
+            this.box(`brass-cabinet-${side}`, [side * 3.43, -.39, -.45], [.14, .20, 6.7], bronze);
+            this.box(`glass-guard-${side}`, [side * 2.84, .46, .20], [.062, .78, 3.95], glass);
+        }
+        this.box("front-gold-bezel", [0, -.56, 3.07], [6.47, .12, .11], gold);
+        this.box("front-neon-stripe", [0, -.64, 3.17], [6.30, .07, .07], neonPurple);
+        this.box("pusher-accent", [0, .32, -2.71], [4.85, .05, .07], gold);
+        this.box("arcade-blue-trim", [0, .88, -3.26], [1.8, .07, .08], electricBlue);
+        this.box("lower-bezel", [0, -1.06, 1.7], [6.90, .17, 2.1], navy);
         // Metallic guide is visual. The real moving pusher is a kinematic collision body.
         this.box("pusher-rail", [0, -.01, -2.8], [5.07, .08, 1.04], cream);
         this.pusher = this.box("kinematic-pusher", [0, .16, this.cycleRearZ], [4.9, .28, .42], pink, "kinematic");
@@ -309,6 +506,7 @@ class CoinPusherGame {
         this.makeGate("left-side-trigger", "side", [-2.80, -.42, .80], [.42, .72, 2.90]);
         this.makeGate("right-side-trigger", "side", [2.80, -.42, .80], [.42, .72, 2.90]);
         this.coinMesh = Laya.PrimitiveMesh.createCylinder(.19, .055, 18);
+        this.coinTopMesh = Laya.PrimitiveMesh.createCylinder(.138, .002, 18);
         // Decorative dots echo the light-bulb frame, non-interactive.
         const dotMesh = Laya.PrimitiveMesh.createSphere(.085, 8, 8);
         for (let x = -2.8; x <= 2.8; x += .55) {
@@ -351,6 +549,12 @@ class CoinPusherGame {
             return false;
         const node = this.createMesh(`coin_${id}_${origin}`, this.coinMesh, this.material[origin === "player" ? "gold" : origin], [x, y, z]);
         node.coinEntityId = id;
+        // Embossed contrasting coin face as a child of the real dynamic rigid body.
+        const face = new Laya.Sprite3D(`coin_face_${id}`);
+        face.transform.localPosition = this.v(0, .029, 0);
+        face.addComponent(Laya.MeshFilter).sharedMesh = this.coinTopMesh;
+        face.addComponent(Laya.MeshRenderer).sharedMaterial = this.material["coinFace"];
+        node.addChild(face);
         const body = node.addComponent(Laya.Rigidbody3D);
         body.colliderShape = new Laya.CylinderColliderShape(.19, .055);
         body.mass = .07;
@@ -362,17 +566,27 @@ class CoinPusherGame {
         return true;
     }
     seed() {
-        // Stable grid has real spaces between cylinder colliders; physics settles the stack.
+        // Live Bullet bodies: staggered base coins, plus a few raised coins that
+        // settle naturally. No fake wallpaper of coins and no per-device coin culling.
         let count = 0;
-        for (let row = 0; row < 12 && count < GameRules_1.RULES.seedCoins; row++) {
-            for (let col = 0; col < 7 && count < GameRules_1.RULES.seedCoins; col++) {
-                // Offset odd rows enough to keep adjacent cylinders non-penetrating.
-                const x = (col - 3) * .58 + ((row % 2) * .20);
-                const z = -1.86 + row * .345;
-                this.coin("seed", x, .08 + (row % 3) * .002, z);
+        for (let row = 0; row < 12; row++) {
+            for (let col = 0; col < 9; col++) {
+                const x = (col - 4) * .48 + (row % 2) * .13;
+                const z = -1.64 + row * .335;
+                this.coin("seed", x, .09, z);
                 count++;
             }
         }
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 9; col++) {
+                const x = (col - 4) * .47 + (row % 2) * .18;
+                const z = -1.10 + row * .87;
+                this.coin("seed", x, .31 + (col % 3) * .008, z);
+                count++;
+            }
+        }
+        if (count !== GameRules_1.RULES.seedCoins)
+            throw new Error("Seed count disagrees with physics layout");
     }
     dropPlayerCoin() {
         if (this.paused || this.queue.occupied >= GameRules_1.RULES.queueCapacity || this.rules.supply === 0)
@@ -479,126 +693,20 @@ class CoinPusherGame {
 }
 exports.CoinPusherGame = CoinPusherGame;
 
-  },
-  "ui/Hud": function(module,exports,require){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Hud = void 0;
-const GameRules_1 = require("../core/GameRules");
-/** Mobile portrait HUD. 3D objects and the 2D control layer never share scoring logic. */
-class Hud {
-    constructor(onAim, onDrop, onArcade, onPause, onReset) {
-        this.onAim = onAim;
-        this.onDrop = onDrop;
-        this.onArcade = onArcade;
-        this.onPause = onPause;
-        this.onReset = onReset;
-        this.labels = {};
-        this.down = false;
-        this.W = 750;
-        this.H = 1334;
-    }
-    label(text, x, y, width, size = 28, color = "#ffffff", bold = true) {
-        const l = new Laya.Text(text);
-        l.pos(x, y);
-        l.width = width;
-        l.height = size + 16;
-        l.fontSize = size;
-        l.color = color;
-        l.bold = bold;
-        l.align = "center";
-        this.root.addChild(l);
-        return l;
-    }
-    rect(x, y, w, h, fill, radius = 0) {
-        const s = new Laya.Sprite();
-        s.pos(x, y);
-        s.size(w, h);
-        s.graphics.drawRect(0, 0, w, h, fill);
-        this.root.addChild(s);
-        return s;
-    }
-    button(text, x, y, w, h, fill, cb) {
-        const box = this.rect(x, y, w, h, fill, 20);
-        const l = new Laya.Text(text);
-        l.width = w;
-        l.height = h;
-        l.fontSize = 28;
-        l.bold = true;
-        l.color = "#fff8e7";
-        l.align = "center";
-        l.valign = "middle";
-        box.addChild(l);
-        box.mouseEnabled = true;
-        l.mouseEnabled = false;
-        box.on(Laya.Event.CLICK, this, cb);
-        return box;
-    }
-    mount() {
-        this.root = new Laya.Sprite();
-        this.root.width = this.W;
-        this.root.height = this.H;
-        Laya.stage.addChild(this.root);
-        this.layout();
-        Laya.stage.on(Laya.Event.RESIZE, this, this.layout);
-        this.rect(0, 0, 750, 155, "#171b38");
-        this.rect(22, 22, 706, 102, "#252044", 20);
-        this.label("✦ 爆 币 街 机 厅 ✦", 165, 26, 420, 34, "#ffcd6e");
-        this.labels.score = this.label("得分 0", 28, 86, 230, 25, "#fff0b7");
-        this.labels.supply = this.label("剩余 45", 267, 86, 212, 25, "#bfeeff");
-        this.labels.energy = this.label("礼炮 0/12", 489, 86, 220, 25, "#ffaec3");
-        this.rect(30, 977, 690, 329, "#181b39", 28);
-        this.label("拖动滑轨选择投币位置", 75, 999, 600, 25, "#eee3d3", false);
-        this.aimBar = this.rect(110, 1051, 530, 18, "#605572", 9);
-        this.aimPin = this.rect(355, 1035, 40, 48, "#ffe39a", 14);
-        const setAim = () => {
-            const local = Laya.stage.mouseX - this.root.x;
-            const n = Math.max(0, Math.min(1, (local - 110) / 530));
-            this.aimPin.x = 110 + n * 530 - 20;
-            this.onAim(n * 2 - 1);
-        };
-        this.aimBar.mouseEnabled = true;
-        this.aimBar.on(Laya.Event.MOUSE_DOWN, this, () => { this.down = true; setAim(); });
-        this.aimPin.mouseEnabled = true;
-        this.aimPin.on(Laya.Event.MOUSE_DOWN, this, () => { this.down = true; setAim(); });
-        Laya.stage.on(Laya.Event.MOUSE_MOVE, this, () => { if (this.down)
-            setAim(); });
-        Laya.stage.on(Laya.Event.MOUSE_UP, this, () => { this.down = false; });
-        Laya.stage.on(Laya.Event.MOUSE_OUT, this, () => { this.down = false; });
-        this.button("投 一 枚 币", 54, 1120, 308, 103, "#e3a345", this.onDrop);
-        this.button("礼 炮 回 流", 389, 1120, 307, 103, "#cb5778", this.onArcade);
-        this.button("暂停 / 继续", 66, 1253, 284, 52, "#494967", this.onPause);
-        this.button("重新开始", 402, 1253, 282, 52, "#494967", this.onReset);
-        this.labels.notice = this.label("真实 3D 物理 • 金币从前方掉落获得分数", 45, 925, 660, 24, "#f8da98", false);
-        this.labels.notice.text = "拖动定位，再点击投币";
-    }
-    layout() {
-        if (!this.root)
-            return;
-        this.root.x = Math.round((Laya.stage.width - this.W) / 2);
-        this.root.y = Math.round((Laya.stage.height - this.H) / 2);
-    }
-    update(s, queued, paused) {
-        this.labels.score.text = `得分 ${s.score}`;
-        this.labels.supply.text = `剩余 ${s.supply}`;
-        this.labels.energy.text = `礼炮 ${s.energy}/${GameRules_1.RULES.arcadeThreshold}`;
-        if (paused)
-            this.labels.notice.text = "已暂停：点击暂停 / 继续恢复";
-        else if (s.supply <= 0 && queued === 0)
-            this.labels.notice.text = "供币用尽，可使用已充能的礼炮";
-        else if (queued >= GameRules_1.RULES.queueCapacity)
-            this.labels.notice.text = "推进中，等待推板复位";
-        else
-            this.labels.notice.text = `前落 ${s.collected}   ·   侧漏 ${s.leaked}   ·   已发礼炮 ${s.shots}`;
-    }
-    showMessage(message) { this.labels.notice.text = message; }
-}
-exports.Hud = Hud;
-
+}};
+  const cache={};
+  function get(pathname){
+    const id=pathname;
+    if(cache[id])return cache[id].exports;
+    const factory=factories[id];if(!factory)throw new Error('Missing compiled module: '+id);
+    const mod={exports:{}};cache[id]=mod;
+    const dir=id.includes('/')?id.slice(0,id.lastIndexOf('/')+1):'';
+    const req=(q)=>{
+      const combined=dir+q;const parts=[];
+      for(const part of combined.split('/')){if(part==='.'||part==='')continue;if(part==='..')parts.pop();else parts.push(part);}
+      return get(parts.join('/'));
+    };
+    factory(mod,mod.exports,req);return mod.exports;
   }
-};
-const cache = {};
-function normalize(path){const st=[];for (const part of path.split('/')){if(part==='..')st.pop();else if(part!=='.'&&part)st.push(part);}return st.join('/');}
-function load(name){if(cache[name])return cache[name].exports;const fn=modules[name];if(!fn)throw Error('Unknown game module: '+name);const module={exports:{}};cache[name]=module;const prefix=name.includes('/')?name.slice(0,name.lastIndexOf('/')+1):'';fn(module,module.exports,(rel)=>load(rel.startsWith('.')?normalize(prefix+rel):rel));return module.exports;}
-window.$_main_=()=>load('Entry').main();
-})();
+  global.$_main_=()=>get('Entry').main();
+})(typeof window!=='undefined'?window:globalThis);

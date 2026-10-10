@@ -2,7 +2,7 @@
 (function () {
   const output = document.getElementById('startup-state');
   const config = {
-    resolution: { designWidth: 750, designHeight: 1334, scaleMode: 'showall', screenMode: 'none', alignH: 'center', alignV: 'middle', backgroundColor: '#11172a' },
+    resolution: { designWidth: 750, designHeight: 1334, scaleMode: 'showall', screenMode: 'none', alignH: 'center', alignV: 'middle', backgroundColor: '#100726' },
     '2D': { useRetinalCanvas: false, defaultFontSize: 22, defaultFont: 'Arial' },
     '3D': { pixelRatio: 1, enableDynamicBatch: true, enableMultiLight: true, maxLightCount: 8, lightClusterCount: { x: 12, y: 12, z: 12 } },
     addons: { 'laya.ui': 'ui2' },
