@@ -90,6 +90,14 @@ jobs:
             console.log('LayaAir actual scene:',JSON.stringify(s));
             assert.equal(s.activeCoins,144,'all 144 seed coins must have rigid bodies');
             assert.equal(s.supply,45);
+            await page.mouse.click(517,1150);
+            await page.waitForTimeout(80);
+            const rightAim=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect().aim);
+            assert.ok(rightAim>s.aim,'right movement button changes drop position');
+            await page.mouse.click(108,1150);
+            await page.waitForTimeout(80);
+            const centeredAim=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect().aim);
+            assert.ok(Math.abs(centeredAim-s.aim)<.01,'left button returns aiming position');
             await page.waitForTimeout(900);
             await page.screenshot({path:'artifacts/start.png'});
             await page.mouse.click(316,1139);

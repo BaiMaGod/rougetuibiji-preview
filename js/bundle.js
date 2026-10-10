@@ -576,16 +576,16 @@ class CoinPusherGame {
         let count = 0;
         for (let row = 0; row < 12; row++) {
             for (let col = 0; col < 9; col++) {
-                const x = (col - 4) * .48 + (row % 2) * .13;
-                const z = -1.64 + row * .335;
+                const x = (col - 4) * .48 + (row % 2) * .13 + Math.sin((row + 1) * 12.19 + col * 7.37) * .055;
+                const z = -1.64 + row * .335 + Math.sin(row * 5.77 + col * 4.93) * .04;
                 this.coin("seed", x, .09, z);
                 count++;
             }
         }
         for (let row = 0; row < 4; row++) {
             for (let col = 0; col < 9; col++) {
-                const x = (col - 4) * .47 + (row % 2) * .18;
-                const z = -1.10 + row * .87;
+                const x = (col - 4) * .47 + (row % 2) * .18 + Math.sin(row * 4.31 + col * 3.33) * .075;
+                const z = -1.10 + row * .87 + Math.cos(row * 9.12 + col * 5.36) * .08;
                 this.coin("seed", x, .31 + (col % 3) * .008, z);
                 count++;
             }
@@ -683,7 +683,7 @@ class CoinPusherGame {
     /** Read-only debug status for localhost Chromium automation, never production scores. */
     inspect() {
         return { ...this.rules.snapshot(), activeCoins: this.rules.activeCount,
-            queued: this.queue.occupied, phase: this.queue.phase, paused: this.paused,
+            queued: this.queue.occupied, phase: this.queue.phase, paused: this.paused, aim: this.aim,
             pusherZ: this.pusher.transform.position.z,
             physicsReady: Boolean(this.scene.physicsSimulation),
             coinSample: [...this.coins.values()].slice(0, 3).map(c => ({
