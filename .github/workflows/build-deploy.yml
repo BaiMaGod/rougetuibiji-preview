@@ -92,6 +92,10 @@ jobs:
             await page.waitForFunction(()=>globalThis.__COIN_PUSHER__?.inspect().coinFaceLoaded === true,{timeout:15000});
             const details=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
             assert.ok(details.movingTrimCount>=4,'pusher brass trim must move with the kinematic body');
+            await page.waitForFunction(()=>Boolean(globalThis.__COIN_PUSHER__?.inspect().playfieldLoaded),{timeout:15000});
+            const style=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
+            assert.ok(style.decorativeParts>=20,'V0.4 3D round rails and metal rivets must render');
+            console.log('V0.4 visual details:',JSON.stringify({playfieldLoaded:style.playfieldLoaded,decorativeParts:style.decorativeParts}));
             assert.equal(s.supply,45);
             await page.mouse.click(517,1150);
             await page.waitForTimeout(80);

@@ -296,8 +296,7 @@ class Hud {
         // A moving tiny gold arrow gives aim feedback without covering the metal housing.
         this.labels.aim = this.text("▼", 355, 355, 42, 40, 29, "#ffe8a3");
         // Dynamic foreground note between machine and console.
-        this.plate(169, 944, 412, 29, "#140d32", 0.61);
-        this.labels.notice = this.text(this.lastNotice, 172, 942, 406, 30, 17, "#fff0d0");
+        this.labels.notice = this.text("", 180, 947, 390, 24, 16, "#fff0d0");
         this.arrow(28, 1062, 148, 193, -1);
         this.arrow(450, 1062, 135, 193, 1);
         this.hit(178, 991, 268, 265, () => { if (!this.paused)
@@ -355,7 +354,7 @@ class Hud {
         else if (queued >= GameRules_1.RULES.queueCapacity)
             this.lastNotice = "推板推进中…";
         else
-            this.lastNotice = `前落 ${s.collected}  ·  侧漏 ${s.leaked}  ·  已发礼炮 ${s.shots}`;
+            this.lastNotice = "";
         this.labels.notice.text = this.lastNotice;
         this.setPauseVisible(paused);
     }
@@ -389,6 +388,8 @@ class CoinPusherGame {
         this.terminalEvents = new Map();
         this.aim = 0;
         this.paused = false;
+        this.playfieldTextureLoaded = false;
+        this.decorativeParts = 0;
         this.material = {};
         this.pendingArcade = 0;
         this.clock = 0;
@@ -405,6 +406,7 @@ class CoinPusherGame {
         this.hud.mount();
         this.seed();
         this.loadCoinSurface();
+        this.loadPlayfield();
         this.hud.update(this.rules.snapshot(), this.queue.occupied, this.paused);
         Laya.timer.frameLoop(1, this, this.update);
         // Browsers may throttle callbacks or pause rendering when backgrounded;
@@ -463,6 +465,27 @@ class CoinPusherGame {
                 this.coinFaceMaterial.albedoTexture = texture;
         }).catch((error) => console.warn("[CoinPusher] coin-face texture fallback", error));
     }
+    /** Laya 3D surface textures decorate visible meshes, never hide a static collision body. */
+    loadPlayfield() {
+        const type = Laya.Loader?.TEXTURE2D || "TEXTURE2D";
+        Laya.loader.load("resources/visual/playfield-inlay.webp", type).then((texture) => {
+            if (texture && this.playfieldMaterial) {
+                this.playfieldMaterial.albedoTexture = texture;
+                this.playfieldTextureLoaded = true;
+            }
+        }).catch((err) => console.warn("[CoinPusher] etched playfield fallback", err));
+    }
+    /** Round tubes/caps for the actual cabinet, as true 3D meshes rather than giant rectangular strips. */
+    rod(name, pos, length, radius, axis, mat) {
+        const node = this.createMesh(name, Laya.PrimitiveMesh.createCylinder(radius, length, 14), mat, pos);
+        node.transform.rotationEuler = this.v(axis === "x" ? 0 : 90, 0, axis === "x" ? 90 : 0);
+        this.decorativeParts++;
+        return node;
+    }
+    rivet(name, pos, radius, mat) {
+        this.createMesh(name, Laya.PrimitiveMesh.createSphere(radius, 10, 8), mat, pos);
+        this.decorativeParts++;
+    }
     createStage() {
         const gold = this.makeMaterial("gold", 1.0, .62, .10, .98);
         this.makeMaterial("seed", .93, .57, .08, .98);
@@ -491,10 +514,15 @@ class CoinPusherGame {
         const champagne = this.makeMaterial("champagne", 1.0, .85, .42, .99);
         const coinEdge = this.makeMaterial("coinEdge", .77, .37, .028, .91);
         const cyan = this.makeMaterial("cyan", .20, .88, 1.0, .94);
+        const goldHaze = this.makeMaterial("goldHaze", 1.0, .76, .27, .94);
+        const hotPink = this.makeMaterial("hotPink", 1.0, .17, .53, .97);
+        const polishedSteel = this.makeMaterial("polishedSteel", .35, .34, .55, .98);
+        const playfield = this.makeMaterial("playfieldArt", .74, .68, .83, .64);
+        this.playfieldMaterial = playfield;
         this.camera = new Laya.Camera(0, 0.1, 100);
-        this.camera.transform.position = this.v(0, 8.0, 9.0);
+        this.camera.transform.position = this.v(0, 7.7, 8.65);
         this.camera.transform.lookAt(this.v(0, -.1, -.38), this.v(0, 1, 0));
-        this.camera.fieldOfView = 52;
+        this.camera.fieldOfView = 50;
         this.camera.clearColor = new Laya.Color(.045, .02, .11, 1);
         this.scene.addChild(this.camera);
         const lightOwner = new Laya.Sprite3D("StudioKeyLight");
@@ -519,6 +547,8 @@ class CoinPusherGame {
         this.box("right-lane-rail", [2.66, .24, -1.9], [.18, .64, 3.03], graphite, "static");
         // A single dark playing field ensures coins keep contrast without a flat bright-blue wall.
         this.box("deep-field-inlay", [0, -.004, -.42], [5.08, .014, 5.36], obsidian);
+        // Laser-etched playfield is a real textured XZ mesh, independent of collision geometry.
+        this.createMesh("etched-playfield-plane", Laya.PrimitiveMesh.createPlane(5.04, 5.32, 1, 1), playfield, [0, .010, -.43]);
         this.box("underbed-shadow", [0, -.70, -.36], [6.67, .18, 6.60], navy);
         this.box("outer-plinth", [0, -.87, -.45], [6.84, .55, 7.20], violet);
         this.box("plinth-metal-front", [0, -.94, 2.97], [6.84, .26, .28], graphite);
@@ -530,6 +560,17 @@ class CoinPusherGame {
         this.box("collection-trim-inner", [0, -.25, 2.61], [5.19, .045, .07], richGold);
         this.box("front-neon-stripe", [0, -.64, 3.18], [6.32, .07, .07], neonPurple);
         this.box("front-blue-footlight", [0, -.88, 3.21], [6.32, .06, .08], electricBlue);
+        this.rod("rounded-payout-front-gold", [0, -.235, 2.56], 5.34, .055, "x", goldHaze);
+        this.rod("rounded-payout-low-chrome", [0, -.66, 3.13], 5.94, .065, "x", polishedSteel);
+        for (const side of [-1, 1]) {
+            this.rivet(`payout-bolt-${side}`, [side * 2.73, -.19, 2.58], .105, champagne);
+            this.rivet(`payout-footer-${side}`, [side * 3.14, -.77, 3.08], .095, richGold);
+        }
+        // A recessed stepped, gently tilted chute visibly receives falling coins,
+        // but its ornate surfaces are purely cosmetic and cannot falsely catch a body.
+        const payoutRamp = this.box("payout-collector-ramp", [0, -.58, 2.94], [5.12, .035, .40], graphite);
+        payoutRamp.transform.rotationEuler = this.v(-16, 0, 0);
+        this.box("payout-ramp-highlight", [0, -.51, 3.07], [4.96, .018, .08], bronze);
         // Three distinct widths make the upper housing look like moulded plated metal.
         this.box("rear-body-outer", [0, .46, -3.99], [6.79, 1.48, .72], violet);
         this.box("rear-body-shadow", [0, .42, -3.55], [5.84, .93, .13], obsidian);
@@ -538,6 +579,17 @@ class CoinPusherGame {
         this.box("rear-lower-lip", [0, .12, -3.24], [5.45, .16, .19], champagne);
         this.box("rear-overhead-ridge", [0, 1.20, -3.81], [6.77, .20, .54], ruby);
         this.box("rear-overhead-gold", [0, 1.11, -3.43], [6.38, .075, .10], champagne);
+        this.rod("marquee-crown-gold-shoulder", [0, 1.195, -3.39], 6.44, .065, "x", champagne);
+        this.rod("rear-bottom-blue-tube", [0, .065, -3.20], 5.52, .048, "x", electricBlue);
+        for (let k = 0; k < 7; k++) {
+            const x = (k - 3) * .81;
+            this.box(`rear-vent-shadow-${k}`, [x, .66, -3.205], [.46, .065, .016], obsidian);
+            this.box(`rear-vent-gold-${k}`, [x, .716, -3.197], [.32, .018, .024], goldHaze);
+        }
+        for (const side of [-1, 1]) {
+            this.rivet(`rear-large-bolt-${side}`, [side * 2.95, .94, -3.37], .105, champagne);
+            this.rivet(`rear-small-bolt-${side}`, [side * 3.09, .26, -3.36], .078, richGold);
+        }
         // Physical cannon tunnel with three metallic raised frames. Decorative only.
         this.box("arcade-port-shadow", [0, .57, -3.24], [1.93, .54, .15], obsidian);
         this.box("arcade-port-gold-top", [0, .88, -3.16], [2.10, .07, .12], champagne);
@@ -545,6 +597,11 @@ class CoinPusherGame {
         this.box("arcade-port-left", [-1.025, .57, -3.16], [.08, .55, .12], richGold);
         this.box("arcade-port-right", [1.025, .57, -3.16], [.08, .55, .12], richGold);
         this.box("cannon-interior", [0, .56, -3.12], [1.73, .41, .06], obsidian);
+        for (let k = 0; k < 5; k++) {
+            const x = (k - 2) * .32;
+            this.box(`cannon-shutter-groove-${k}`, [x, .56, -3.079], [.08, .3, .02], graphite);
+            this.rivet(`cannon-shutter-lamp-${k}`, [x, .83, -3.083], .04, champagne);
+        }
         // Side guard assemblies have repeated seams, steel/glass/LED material layering.
         for (const side of [-1, 1]) {
             this.box(`side-main-${side}`, [side * 3.23, -.21, -.43], [.52, .75, 6.65], violet);
@@ -555,6 +612,15 @@ class CoinPusherGame {
             this.box(`side-clear-wall-${side}`, [side * 2.80, .45, .20], [.058, .70, 3.92], glass);
             this.box(`side-clear-wall-glint-${side}`, [side * 2.80, .82, .20], [.075, .03, 3.91], champagne);
             this.box(`side-clear-front-cap-${side}`, [side * 2.78, .44, 2.16], [.12, .90, .10], champagne);
+            this.rod(`side-top-rounded-chrome-${side}`, [side * 2.80, .91, .16], 4.17, .075, "z", champagne);
+            this.rod(`side-top-magenta-inset-${side}`, [side * 2.79, .98, .16], 4.05, .035, "z", hotPink);
+            this.rod(`side-bottom-rounded-blue-${side}`, [side * 2.82, .015, .12], 4.22, .042, "z", electricBlue);
+            this.rod(`side-housing-tube-${side}`, [side * 3.43, .20, -.56], 6.50, .075, "z", polishedSteel);
+            for (let k = 0; k < 3; k++) {
+                const zz = -1.79 + k * 1.93;
+                this.rivet(`side-top-crystal-${side}-${k}`, [side * 2.80, 1.02, zz], .090, cyan);
+                this.rivet(`side-top-crystal-backing-${side}-${k}`, [side * 2.80, .96, zz], .115, richGold);
+            }
             // Per-side stepped metal ribs and visible gold fasteners.
             for (let i = 0; i < 6; i++) {
                 const z = -2.94 + i * .98;
@@ -565,11 +631,16 @@ class CoinPusherGame {
         // The step plate behind the pusher has three layers but is not a fake second pusher.
         this.box("pusher-track-black", [0, -.012, -2.8], [5.05, .06, 1.09], graphite);
         this.box("pusher-track-gold-edge", [0, .035, -2.25], [5.12, .05, .11], gold);
+        this.rod("pusher-track-guidance-rail", [0, .078, -2.246], 5.08, .043, "x", champagne);
         this.pusher = this.box("kinematic-pusher", [0, .16, this.cycleRearZ], [4.9, .28, .42], ruby, "kinematic");
         this.trimOn(this.pusher, "pusher-gold-cap", [0, .155, 0], [4.94, .052, .44], champagne);
         this.trimOn(this.pusher, "pusher-red-top", [0, .188, -.03], [4.72, .03, .32], pink);
         this.trimOn(this.pusher, "pusher-gold-forward-edge", [0, .04, .225], [4.96, .12, .064], richGold);
         this.trimOn(this.pusher, "pusher-purple-underglow", [0, -.087, .227], [4.82, .05, .06], neonPurple);
+        this.trimOn(this.pusher, "pusher-front-blue-seam", [0, .106, .237], [4.78, .028, .028], electricBlue);
+        for (const side of [-1, 1]) {
+            this.trimOn(this.pusher, `pusher-end-block-${side}`, [side * 2.34, .20, -.06], [.18, .14, .43], polishedSteel);
+        }
         for (let i = 0; i < 7; i++) {
             const x = (i - 3) * .69;
             this.trimOn(this.pusher, `pusher-inset-light-${i}`, [x, .222, -.08], [.34, .008, .09], champagne);
@@ -578,8 +649,8 @@ class CoinPusherGame {
         this.makeGate("front-slot-trigger", "front", [0, -.42, 2.64], [5.16, .72, .68]);
         this.makeGate("left-side-trigger", "side", [-2.80, -.42, .80], [.42, .72, 2.90]);
         this.makeGate("right-side-trigger", "side", [2.80, -.42, .80], [.42, .72, 2.90]);
-        this.coinMesh = Laya.PrimitiveMesh.createCylinder(.19, .055, 28);
-        this.coinEdgeMesh = Laya.PrimitiveMesh.createCylinder(.189, .012, 28);
+        this.coinMesh = Laya.PrimitiveMesh.createCylinder(.19, .075, 32);
+        this.coinEdgeMesh = Laya.PrimitiveMesh.createCylinder(.186, .014, 32);
         // The textured planar medallion is a child of the moving 3D coin and follows all spins.
         this.coinTopMesh = Laya.PrimitiveMesh.createPlane(.356, .356, 1, 1);
         const bulb = Laya.PrimitiveMesh.createSphere(.085, 10, 10);
@@ -632,17 +703,17 @@ class CoinPusherGame {
         node.transform.rotationEuler = this.v(((id * 13) % 7 - 3) * 1.7, (id * 137.508) % 360, ((id * 23) % 9 - 4) * 1.35);
         // A polished beveled rim and a crown-face texture both follow this rigid body.
         const rim = new Laya.Sprite3D(`coin_milled_rim_${id}`);
-        rim.transform.localPosition = this.v(0, .027, 0);
+        rim.transform.localPosition = this.v(0, .039, 0);
         rim.addComponent(Laya.MeshFilter).sharedMesh = this.coinEdgeMesh;
         rim.addComponent(Laya.MeshRenderer).sharedMaterial = this.material["coinEdge"];
         node.addChild(rim);
         const face = new Laya.Sprite3D(`coin_crown_${id}`);
-        face.transform.localPosition = this.v(0, .034, 0);
+        face.transform.localPosition = this.v(0, .048, 0);
         face.addComponent(Laya.MeshFilter).sharedMesh = this.coinTopMesh;
         face.addComponent(Laya.MeshRenderer).sharedMaterial = this.material["coinFace"];
         node.addChild(face);
         const body = node.addComponent(Laya.Rigidbody3D);
-        body.colliderShape = new Laya.CylinderColliderShape(.19, .055);
+        body.colliderShape = new Laya.CylinderColliderShape(.19, .075);
         body.mass = .07;
         body.friction = .44;
         body.restitution = .025;
@@ -773,6 +844,7 @@ class CoinPusherGame {
         this.pusher.transform.position = this.v(0, .16, this.cycleRearZ);
         this.seed();
         this.loadCoinSurface();
+        this.loadPlayfield();
         this.hud.update(this.rules.snapshot(), this.queue.occupied, this.paused);
     }
     /** Read-only debug status for localhost Chromium automation, never production scores. */
@@ -782,6 +854,8 @@ class CoinPusherGame {
             pusherZ: this.pusher.transform.position.z,
             physicsReady: Boolean(this.scene.physicsSimulation),
             coinFaceLoaded: Boolean(this.coinFaceMaterial?.albedoTexture),
+            playfieldLoaded: this.playfieldTextureLoaded,
+            decorativeParts: this.decorativeParts,
             movingTrimCount: this.pusher?.numChildren || 0,
             coinSample: [...this.coins.values()].slice(0, 3).map(c => ({
                 id: c.id, x: c.node.transform.position.x,
