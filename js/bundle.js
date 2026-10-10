@@ -256,7 +256,7 @@ class Hud {
     stepAim(direction) {
         this.aim = Math.max(-1, Math.min(1, this.aim + direction * 0.125));
         this.onAim(this.aim);
-        this.labels.aim.text = `投币位置 ${Math.round((this.aim + 1) * 50)}%`;
+        this.labels.aim.x = 355 + this.aim * 120;
     }
     arrow(x, y, w, h, dir) {
         const a = this.hit(x, y, w, h, () => { });
@@ -293,12 +293,11 @@ class Hud {
         this.labels.score = this.text("0", 151, 283, 74, 44, 31, "#ffeaa6");
         this.labels.supply = this.text("45", 404, 283, 74, 44, 31, "#bdf3ff");
         this.labels.energy = this.text("0/12", 651, 283, 83, 44, 27, "#ffbbdb");
-        // Small live targeting marker, distinct from the static art.
-        this.plate(288, 351, 174, 34, "#21133f", 0.84);
-        this.labels.aim = this.text("投币位置 50%", 292, 352, 165, 31, 21, "#ffe7a0");
+        // A moving tiny gold arrow gives aim feedback without covering the metal housing.
+        this.labels.aim = this.text("▼", 355, 355, 42, 40, 29, "#ffe8a3");
         // Dynamic foreground note between machine and console.
-        this.plate(68, 940, 615, 30, "#140d32", 0.79);
-        this.labels.notice = this.text(this.lastNotice, 73, 939, 604, 31, 20, "#fff0d0");
+        this.plate(169, 944, 412, 29, "#140d32", 0.61);
+        this.labels.notice = this.text(this.lastNotice, 172, 942, 406, 30, 17, "#fff0d0");
         this.arrow(28, 1062, 148, 193, -1);
         this.arrow(450, 1062, 135, 193, 1);
         this.hit(178, 991, 268, 265, () => { if (!this.paused)
@@ -629,6 +628,8 @@ class CoinPusherGame {
             return false;
         const node = this.createMesh(`coin_${id}_${origin}`, this.coinMesh, this.material[origin === "player" ? "gold" : origin], [x, y, z]);
         node.coinEntityId = id;
+        // Crown orientation and small tilts are not synchronised across the pile.
+        node.transform.rotationEuler = this.v(((id * 13) % 7 - 3) * 1.7, (id * 137.508) % 360, ((id * 23) % 9 - 4) * 1.35);
         // A polished beveled rim and a crown-face texture both follow this rigid body.
         const rim = new Laya.Sprite3D(`coin_milled_rim_${id}`);
         rim.transform.localPosition = this.v(0, .027, 0);
@@ -651,31 +652,39 @@ class CoinPusherGame {
         return true;
     }
     seed() {
-        // Three clearly visible real Bullet strata, not a decorative coin photograph.
-        // Spaced cylinder colliders settle into organically uneven piles under gravity.
-        let count = 0;
-        for (let row = 0; row < 10; row++)
-            for (let col = 0; col < 9; col++) {
-                const x = (col - 4) * .485 + (row % 2) * .067 + Math.sin((row + 2) * 6.13 + col * 5.37) * .018;
-                const z = -1.77 + row * .39 + Math.sin(row * 2.17 + col * 4.93) * .019;
-                this.coin("seed", x, .086, z);
-                count++;
+        // Deterministic irregular distribution: three physical strata, not a grid of coins.
+        // The upper strata settle onto the lower layer under Bullet gravity.
+        let state = 0x7A51D20;
+        const rand = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
+        let total = 0;
+        const layers = [
+            { count: 90, xMin: -2.25, xMax: 2.25, zMin: -1.84, zMax: 1.65, clearance: .342, y: .084 },
+            { count: 38, xMin: -1.97, xMax: 1.97, zMin: -.55, zMax: 1.80, clearance: .35, y: .235 },
+            { count: 16, xMin: -1.45, xMax: 1.45, zMin: .34, zMax: 1.91, clearance: .38, y: .400 }
+        ];
+        for (const layer of layers) {
+            const taken = [];
+            for (let i = 0; i < layer.count; i++) {
+                let x = 0, z = 0, placed = false;
+                // Poisson rejection for natural scatter, with bounded execution.
+                for (let attempt = 0; attempt < 2400; attempt++) {
+                    x = layer.xMin + rand() * (layer.xMax - layer.xMin);
+                    z = layer.zMin + rand() * (layer.zMax - layer.zMin);
+                    if (taken.every(p => (p.x - x) ** 2 + (p.z - z) ** 2 >= layer.clearance ** 2)) {
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) { // still finite; fallback gives Bullet a chance to separate it.
+                    x = layer.xMin + rand() * (layer.xMax - layer.xMin);
+                    z = layer.zMin + rand() * (layer.zMax - layer.zMin);
+                }
+                taken.push({ x, z });
+                this.coin("seed", x, layer.y + (rand() - .5) * .016, z);
+                total++;
             }
-        for (let row = 0; row < 6; row++)
-            for (let col = 0; col < 7; col++) {
-                const x = (col - 3) * .485 + (row % 2) * .08 + Math.sin(row * 4.31 + col * 3.33) * .018;
-                const z = -.44 + row * .414 + Math.cos(row * 3.12 + col * 1.36) * .021;
-                this.coin("seed", x, .22 + (col % 3) * .005, z);
-                count++;
-            }
-        for (let row = 0; row < 3; row++)
-            for (let col = 0; col < 4; col++) {
-                const x = (col - 1.5) * .465 + (row % 2) * .058;
-                const z = .78 + row * .397 + Math.sin(row * 5.77 + col * 2.11) * .025;
-                this.coin("seed", x, .36 + (col % 2) * .005, z);
-                count++;
-            }
-        if (count !== GameRules_1.RULES.seedCoins)
+        }
+        if (total !== GameRules_1.RULES.seedCoins)
             throw new Error("Seed count disagrees with physics layout");
     }
     dropPlayerCoin() {
