@@ -88,7 +88,7 @@ jobs:
             }
             const s=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
             console.log('LayaAir actual scene:',JSON.stringify(s));
-            assert.equal(s.activeCoins,144,'all 144 seed coins must have rigid bodies');
+            assert.equal(s.activeCoins,180,'all 180 seed coins must have rigid bodies');
             await page.waitForFunction(()=>globalThis.__COIN_PUSHER__?.inspect().coinFaceLoaded === true,{timeout:15000});
             const details=await page.evaluate(()=>globalThis.__COIN_PUSHER__.inspect());
             assert.ok(details.movingTrimCount>=4,'pusher brass trim must move with the kinematic body');
@@ -124,7 +124,7 @@ jobs:
             assert.equal(resumed.paused,false,'tap continue resumes game');
             await page.screenshot({path:'artifacts/resumed.png'});
             assert.deepEqual(errors,[],'No Chromium browser JS/HTTP errors allowed');
-            console.log('PASS: V0.2 title/control artwork, 144 physical coins, gameplay input, pause/resume, no errors');
+            console.log('PASS: V0.2 title/control artwork, 180 physical coins, gameplay input, pause/resume, no errors');
           }finally{await browser.close();}
           NODE
       - name: Upload QA diagnostics

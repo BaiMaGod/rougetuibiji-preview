@@ -39,7 +39,7 @@ async function main() {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PusherQueue = exports.GameRules = exports.RULES = void 0;
 exports.RULES = Object.freeze({
-    maxCoins: 600, seedCoins: 144, initialSupply: 45, cycleSeconds: 1.25,
+    maxCoins: 600, seedCoins: 180, initialSupply: 45, cycleSeconds: 1.25,
     queueCapacity: 2, scorePerCoin: 10, energyPerCoin: 1, arcadeThreshold: 12,
     rewardCount: 6, maxEnergy: 35
 });
@@ -540,6 +540,18 @@ class CoinPusherGame {
         cool.color = new Laya.Color(.32, .53, 1.0, 1);
         cool.intensity = .48;
         coolOwner.transform.rotationEuler = this.v(-50, 140, 0);
+        // Low-range accent spots shape the gold piles and cabinet, not an expensive full-scene bloom pass.
+        if (Laya.PointLightCom) {
+            for (const side of [-1, 1]) {
+                const owner = new Laya.Sprite3D(`GoldCoinSpot_${side}`);
+                this.scene.addChild(owner);
+                owner.transform.position = this.v(side * 2.20, 2.45, -.15);
+                const lamp = owner.addComponent(Laya.PointLightCom);
+                lamp.color = side < 0 ? new Laya.Color(1, .54, .22, 1) : new Laya.Color(.87, .37, .95, 1);
+                lamp.intensity = .56;
+                lamp.range = 5.2;
+            }
+        }
         // Real collision footprint is untouched: a separate ornament never secretly blocks a coin.
         this.box("tray-solid", [0, -.12, -.56], [5.14, .22, 5.68], board, "static");
         this.box("tray-rim-back", [0, .22, -3.46], [5.4, .65, .2], graphite, "static");
@@ -729,9 +741,9 @@ class CoinPusherGame {
         const rand = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
         let total = 0;
         const layers = [
-            { count: 90, xMin: -2.25, xMax: 2.25, zMin: -1.84, zMax: 1.65, clearance: .342, y: .084 },
-            { count: 38, xMin: -1.97, xMax: 1.97, zMin: -.55, zMax: 1.80, clearance: .35, y: .235 },
-            { count: 16, xMin: -1.45, xMax: 1.45, zMin: .34, zMax: 1.91, clearance: .38, y: .400 }
+            { count: 102, xMin: -2.25, xMax: 2.25, zMin: -1.84, zMax: 1.65, clearance: .342, y: .084 },
+            { count: 54, xMin: -1.97, xMax: 1.97, zMin: -.55, zMax: 1.80, clearance: .35, y: .235 },
+            { count: 24, xMin: -1.45, xMax: 1.45, zMin: .34, zMax: 1.91, clearance: .38, y: .400 }
         ];
         for (const layer of layers) {
             const taken = [];
