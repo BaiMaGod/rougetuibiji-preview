@@ -210,6 +210,7 @@ class Hud {
         label.fontSize = size;
         label.color = color;
         label.bold = true;
+        label.font = "Arial, Noto Sans CJK SC, Microsoft YaHei, sans-serif";
         label.align = "center";
         label.valign = "middle";
         label.mouseEnabled = false;
@@ -283,12 +284,15 @@ class Hud {
         // Marquee and control deck are cropped from the approved 肉鸽推币机 concept.
         this.image("resources/visual/marquee.webp", 0, 0, 750, 270);
         this.image("resources/visual/console.webp", 0, 973, 750, 361);
-        for (const [x, y] of [[12, 272], [265, 272], [518, 272]]) {
-            this.image("resources/visual/hud-pill.webp", x, y, 221, 69);
-        }
-        this.labels.score = this.text("得分 0", 20, 281, 210, 49, 29, "#ffeaa6");
-        this.labels.supply = this.text("剩余 45", 273, 281, 210, 49, 29, "#bdf3ff");
-        this.labels.energy = this.text("礼炮 0/12", 526, 281, 210, 49, 28, "#ffbbdb");
+        this.image("resources/visual/side-neon.webp", 0, 343, 750, 630);
+        this.image("resources/visual/score-panel.webp", 12, 272, 221, 69);
+        this.image("resources/visual/supply-panel.webp", 265, 272, 221, 69);
+        this.image("resources/visual/arcade-panel.webp", 518, 272, 221, 69);
+        // The Chinese labels live in artwork, so they display correctly even on Linux without CJK fonts.
+        // Only numeric readouts are dynamic.
+        this.labels.score = this.text("0", 151, 283, 74, 44, 31, "#ffeaa6");
+        this.labels.supply = this.text("45", 404, 283, 74, 44, 31, "#bdf3ff");
+        this.labels.energy = this.text("0/12", 651, 283, 83, 44, 27, "#ffbbdb");
         // Small live targeting marker, distinct from the static art.
         this.plate(288, 351, 174, 34, "#21133f", 0.84);
         this.labels.aim = this.text("投币位置 50%", 292, 352, 165, 31, 21, "#ffe7a0");
@@ -303,7 +307,7 @@ class Hud {
             this.onArcade(); });
         // Dedicated pause icon above the control deck, avoids hiding a gameplay button.
         this.plate(671, 925, 68, 54, "#25165b", 0.94);
-        this.text("Ⅱ", 681, 929, 48, 43, 33, "#ffda64");
+        this.text("II", 681, 929, 48, 43, 33, "#ffda64");
         this.hit(671, 925, 68, 54, () => this.onPause());
         this.buildPauseLayer();
     }
@@ -342,9 +346,9 @@ class Hud {
     }
     update(s, queued, paused) {
         this.paused = paused;
-        this.labels.score.text = `得分 ${s.score}`;
-        this.labels.supply.text = `剩余 ${s.supply}`;
-        this.labels.energy.text = `礼炮 ${s.energy}/${GameRules_1.RULES.arcadeThreshold}`;
+        this.labels.score.text = String(s.score);
+        this.labels.supply.text = String(s.supply);
+        this.labels.energy.text = `${s.energy}/${GameRules_1.RULES.arcadeThreshold}`;
         if (paused)
             this.lastNotice = "已暂停";
         else if (s.supply <= 0 && queued === 0)
@@ -463,6 +467,7 @@ class CoinPusherGame {
         this.camera.transform.position = this.v(0, 8.0, 9.0);
         this.camera.transform.lookAt(this.v(0, -.1, -.38), this.v(0, 1, 0));
         this.camera.fieldOfView = 52;
+        this.camera.clearColor = new Laya.Color(.045, .02, .11, 1);
         this.scene.addChild(this.camera);
         const lightOwner = new Laya.Sprite3D("StudioKeyLight");
         this.scene.addChild(lightOwner);
